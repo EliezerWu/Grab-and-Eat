@@ -3,7 +3,7 @@
 <p>-----------------------------------------------------------Change Log--------------------------------------------------------------------</p>
 <h3>v0.2:</h3>
 <ul>
-<li>Rewrite the whole script. Hopefully fixed the game freeze bug</li>
+<li>Rewrite the whole script. Hopefully fix the game freeze bug</li>
 <li>Player can grab and drink/use now.</li>
 <li>Change some texts in notifications.</li>
 <li>Some other minor changes</li>
