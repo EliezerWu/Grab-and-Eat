@@ -8,6 +8,8 @@ Message Property GrabAndEatMSG_Disabled Auto Const
 
 ; Keyword
 Keyword Property ObjectTypeFood	Auto const
+Keyword Property ObjectTypeChem	Auto const
+Keyword Property ObjectTypeStimpak Auto const
 ; variables
 Form Item = None
 Actor PlayerRef
@@ -59,7 +61,7 @@ Function Grab(ObjectReference akTargetRef)
       Debug.Trace("item moved",0)
       PlayerRef.EquipItem(Item,False,True)
       Debug.Trace("Equiped",0)
-      Debug.Notification("You grabbed some food and ate.")
+      Notification(Item)
     Else
     Debug.Notification("It's a quest item!")
     EndIf
@@ -76,3 +78,16 @@ State Busy
 		Debug.trace("Grab() BUSY state.",0)
 	EndFunction
 EndState
+
+;Check the item's keyword and give player corresponding notification
+Function Notification(Form akBaseItem)
+  if(akBaseItem.HasKeyword(ObjectTypeFood))
+    Debug.Notification("You grabbed some food and ate.")
+  EndIf
+  if(akBaseItem.HasKeyword(ObjectTypeChem))
+    Debug.Notification("You took some chems")
+  EndIf
+  if(akBaseItem.HasKeyword(ObjectTypeStimpak))
+    Debug.Notification("You used a stimpak")
+  EndIf
+EndFunction
