@@ -54,7 +54,9 @@ Function Grab(ObjectReference akTargetRef)
     If(akTargetRef.Activate(PlayerRef,False))
       Debug.Trace("picked up food",0)
     EndIf
-    Debug.Notification("It's a quest item!")
+  Game.GetPlayer().EquipItem(Item,False,True)
+  Debug.Trace("Equiped",0)
+  Debug.Notification("You grabbed some food and ate.")
   ;Utility.wait(4.0)
   EndIf
   GotoState("")
