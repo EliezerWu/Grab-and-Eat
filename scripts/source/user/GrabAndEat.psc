@@ -4,17 +4,19 @@ ScriptName GrabAndEat Extends Quest
 Perk    Property GrabAndEatPerk             Auto Const
 Message Property GrabAndEatMSG_Enabled  Auto Const
 Message Property GrabAndEatMSG_Disabled Auto Const
-
-
-; Keyword
+Container Property acontainer Auto Const
+; Keywords
 Keyword Property ObjectTypeFood	Auto const
 Keyword Property ObjectTypeChem	Auto const
 Keyword Property ObjectTypeStimpak Auto const
+Keyword Property ObjectTypeArmor Auto Const
+Keyword Property ObjectTypeArmorLeg Auto Const
+Keyword Property ObjectTypeWeapon Auto Const
 ; variables
 Form Item = None
 Actor PlayerRef
 ; Versioning
-float version = 0.2
+float version = 1.0
 
 Event OnQuestInit()
    
@@ -50,21 +52,31 @@ Function Grab(ObjectReference akTargetRef)
   PlayerRef=Game.GetPlayer()
   Debug.trace("Grab() oprerating...")
   If(akTargetRef As Bool)
-    Item=akTargetRef.GetBaseObject()
-    Debug.trace("Item is "+Item)
-    if(!akTargetRef.IsQuestItem())
-      if(PlayerRef.WouldBeStealing(akTargetRef))
-        akTargetRef.SendStealAlarm(PlayerRef)
+    if(!IsWeaponOrArmor(akTargetRef))
+      Debug.Trace("Not a weapon",0)
+      if(!akTargetRef.IsQuestItem())
+        if(PlayerRef.WouldBeStealing(akTargetRef))
+          akTargetRef.SendStealAlarm(PlayerRef)
+        EndIf
+        Item=akTargetRef.GetBaseObject()
+        Debug.trace("Item is "+Item)
+        Debug.Trace("prepare to move",0)
+        PlayerRef.AddItem(akTargetRef,1,True)
+        Debug.Trace("item moved",0)
+        PlayerRef.EquipItem(Item,False,True)
+        Debug.Trace("Equiped",0)
+        Notification(Item)
+      Else
+      Debug.Notification("It's a quest item!")
       EndIf
-      Debug.Trace("prepare to move",0)
-      PlayerRef.AddItem(akTargetRef,1,True)
-      Debug.Trace("item moved",0)
-      PlayerRef.EquipItem(Item,False,True)
-      Debug.Trace("Equiped",0)
-      Notification(Item)
     Else
-    Debug.Notification("It's a quest item!")
+        If(PlayerRef.WouldBeStealing(akTargetRef))
+          akTargetRef.SendStealAlarm(PlayerRef)
+        EndIf
+        PlayerEquipModded(akTargetRef)
+        PlayerRef.DrawWeapon()
     EndIf
+    debug.trace("all done!")
   ;Utility.wait(4.0)
   EndIf
   GotoState("")
@@ -91,3 +103,49 @@ Function Notification(Form akBaseItem)
     Debug.Notification("You used a stimpak")
   EndIf
 EndFunction
+
+bool Function IsWeaponOrArmor(ObjectReference akTargetRef)
+  return(akTargetRef.HasKeyword(ObjectTypeArmor)||akTargetRef.HasKeyword(ObjectTypeArmorLeg)||akTargetRef.HasKeyword(ObjectTypeWeapon))
+EndFunction
+ 
+Function PlayerEquipModded(ObjectReference akTargetRef)
+   ;Cause EquipItem() will randomly pick a weapon/aromr for player if player has more
+   ;than one equipment with the same baseid (i.e one is modded the other is not)
+   ;we need to move other equipments sharing the same id to a temp container and
+   ;then equip what we want
+  Form BaseItem=akTargetRef.GetBaseObject()
+  debug.trace("temp container generated")
+  int iCount = PlayerRef.GetItemCount(BaseItem)
+  debug.trace("iCount: "+ iCount)
+  if(iCount)
+    ObjectReference abox= PlayerRef.PlaceAtMe(acontainer)
+    ;PlayerRef.RemoveItem(BaseItem, iCount, true, abox) 
+    ;bug:only the weapon the player current equip will be removed
+    PlayerRef.UnEquipItem(BaseItem,False,True)
+    PlayerRef.RemoveItem(BaseItem, iCount, true, abox)
+    debug.trace("weapon/aromr(s) moved to temp container")
+    debug.trace("iCount in abox: "+ abox.getItemCount())
+    PlayerRef.addItem(akTargetRef,1,True)
+    debug.trace("weapon/aromr added")
+    PlayerRef.EquipItem(BaseItem,false,true)
+    debug.trace("weapon/aromr equiped")
+    abox.RemoveItem(BaseItem,iCount,True, PlayerRef)
+    debug.trace("weapon/aromr moved to player")
+    debug.trace("iCount in abox: "+ abox.getItemCount())
+    abox.Disable()
+    debug.trace("temp container disabled")
+  Else
+    PlayerRef.addItem(akTargetRef,1,True)
+    debug.trace("weapon/aromr added")
+    PlayerRef.EquipItem(BaseItem,false,true)
+    debug.trace("weapon/aromr equiped")
+  ;abox.DeleteWhenAble()
+  ;debug.trace("temp container deleted")
+  EndIf
+EndFunction
+  
+
+    
+  
+  
+  
