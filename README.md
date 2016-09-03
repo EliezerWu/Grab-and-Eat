@@ -5,6 +5,7 @@
 <h3>v1.5</h3>
 <ul>
 <li>NEW FEATURE: player can read notes from containers/corpes</li>
+</ul>
 <h3>v1.0:</h3>
 <ul>
 <li>After many days of hard work, finally find a way for player to grab and equip!</li>
