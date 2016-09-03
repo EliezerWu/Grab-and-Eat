@@ -14,57 +14,55 @@ Keyword Property ObjectTypeArmorLeg Auto Const
 Keyword Property ObjectTypeWeapon Auto Const
 ; variables
 Form Item = None
+Form LastItem=None
 Actor PlayerRef
+int LastCount=0
+bool IsUnregistered = True
+bool IsFilterNotAdded = True
+bool bShouldCheckItemCount=False
 ; Versioning
-float version = 1.0
+float version = 2.0
 
 Event OnQuestInit()
    
-    On()
+  On()
  
 EndEvent
 
- 
-Function Toggle()
-    If (!Game.GetPlayer().HasPerk(GrabAndEatPerk))
-        On()
-    Else
-        Off()
-    EndIf
-EndFunction
-
 Function On()
-If (!Game.GetPlayer().HasPerk(GrabAndEatPerk))
-    Game.GetPlayer().AddPerk(GrabAndEatPerk,False)
-    GrabAndEatMSG_Enabled.Show(0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
-EndIf
-EndFunction
-
-Function Off()
+If (Game.GetPlayer().HasPerk(GrabAndEatPerk))
     Game.GetPlayer().RemovePerk(GrabAndEatPerk)
-    GrabAndEatMSG_Disabled.Show(0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
+EndIf
+Game.GetPlayer().AddPerk(GrabAndEatPerk,False)
+If(IsFilterNotAdded)
+  AddInventoryEventFilter(None)
+  IsFilterNotAdded=False
+EndIf
+If(IsUnregistered)
+  RegisterForMenuOpenCloseEvent("BarterMenu")
+  RegisterForMenuOpenCloseEvent("ContainerMenu")
+  debug.trace("Menu registered")
+  RegisterForRemoteEvent(Game.GetPlayer(), "OnItemAdded")
+  IsUnregistered=false
+EndIf
+Debug.trace("Filter= "+!IsFilterNotAdded)
+Debug.trace("event= "+!IsUnregistered)
+GrabAndEatMSG_Enabled.Show(0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
 EndFunction
-
 
 
 Function Grab(ObjectReference akTargetRef)
   GotoState("Busy")
   PlayerRef=Game.GetPlayer()
-  Debug.trace("Grab() oprerating...")
   If(akTargetRef As Bool)
     if(!IsWeaponOrArmor(akTargetRef))
-      Debug.Trace("Not a weapon",0)
       if(!akTargetRef.IsQuestItem())
         if(PlayerRef.WouldBeStealing(akTargetRef))
           akTargetRef.SendStealAlarm(PlayerRef)
         EndIf
         Item=akTargetRef.GetBaseObject()
-        Debug.trace("Item is "+Item)
-        Debug.Trace("prepare to move",0)
         PlayerRef.AddItem(akTargetRef,1,True)
-        Debug.Trace("item moved",0)
         PlayerRef.EquipItem(Item,False,True)
-        Debug.Trace("Equiped",0)
         Notification(Item)
       Else
       Debug.Notification("It's a quest item!")
@@ -114,7 +112,6 @@ Function PlayerEquipModded(ObjectReference akTargetRef)
    ;we need to move other equipments sharing the same id to a temp container and
    ;then equip what we want
   Form BaseItem=akTargetRef.GetBaseObject()
-  debug.trace("temp container generated")
   int iCount = PlayerRef.GetItemCount(BaseItem)
   debug.trace("iCount: "+ iCount)
   if(iCount)
@@ -123,26 +120,108 @@ Function PlayerEquipModded(ObjectReference akTargetRef)
     ;bug:only the weapon the player current equip will be removed
     PlayerRef.UnEquipItem(BaseItem,False,True)
     PlayerRef.RemoveItem(BaseItem, iCount, true, abox)
-    debug.trace("weapon/aromr(s) moved to temp container")
     debug.trace("iCount in abox: "+ abox.getItemCount())
     PlayerRef.addItem(akTargetRef,1,True)
-    debug.trace("weapon/aromr added")
     PlayerRef.EquipItem(BaseItem,false,true)
-    debug.trace("weapon/aromr equiped")
     abox.RemoveItem(BaseItem,iCount,True, PlayerRef)
-    debug.trace("weapon/aromr moved to player")
     debug.trace("iCount in abox: "+ abox.getItemCount())
     abox.Disable()
     debug.trace("temp container disabled")
   Else
     PlayerRef.addItem(akTargetRef,1,True)
-    debug.trace("weapon/aromr added")
     PlayerRef.EquipItem(BaseItem,false,true)
-    debug.trace("weapon/aromr equiped")
   ;abox.DeleteWhenAble()
   ;debug.trace("temp container deleted")
   EndIf
 EndFunction
+
+Function reset()
+  Game.GetPlayer().RemovePerk(GrabAndEatPerk)
+  if(!IsFilterNotAdded)
+    RemoveInventoryEventFilter(None)
+    IsFilterNotAdded=True
+    Debug.trace("Filter Removed? "+IsFilterNotAdded)
+  Endif
+  Stop()
+  InitVar()
+  Debug.trace("Varibles Initialized ")
+  Utility.WaitMenuMode(0.2)
+	Start()
+EndFunction
+
+Function uninstall()
+  Debug.trace("Uninstallation Initializing")
+  Game.GetPlayer().RemovePerk(GrabAndEatPerk)
+  if(!IsFilterNotAdded)
+    RemoveInventoryEventFilter(None)
+    IsFilterNotAdded=True
+    Debug.trace("Filter Removed? "+IsFilterNotAdded)
+  Endif
+  UnregisterForAllEvents()
+  InitVar()
+  Debug.trace("Varibles Initialized ")
+  Stop()
+  Debug.MessageBox("Grab and Eat is now ready for uninstallation.")
+EndFunction
+
+Function InitVar()
+  Form Item = None
+Form LastItem=None
+int LastCount=0
+bool IsUnregistered = True
+bool IsFilterNotAdded = True
+bool bShouldCheckItemCount=False
+EndFunction
+
+Event OnMenuOpenCloseEvent(string asMenuName, bool abOpening)
+  if(asMenuName=="BarterMenu"&&abOpening&&!IsUnregistered)
+    UnregisterForRemoteEvent(Game.GetPlayer(), "OnItemAdded")
+    IsUnregistered=True
+    debug.trace("Menu is open. Register= "+!IsUnregistered)
+  endIf
+  If(asMenuName=="BarterMenu"&&!abOpening&&IsUnregistered)
+    Utility.WaitMenuMode(0.3)
+    RegisterForRemoteEvent(Game.GetPlayer(), "OnItemAdded")
+    IsUnregistered=False
+    debug.trace("Menu is closed. Register"+!IsUnregistered)
+  endIf
+  if(asMenuName=="ContainerMenu"&&abOpening&&!IsUnregistered)
+    UnregisterForRemoteEvent(Game.GetPlayer(), "OnItemAdded")
+    IsUnregistered=True
+    debug.trace("Menu is open. Register= "+!IsUnregistered)
+  endIf
+  If(asMenuName== "ContainerMenu"&&!abOpening&&IsUnregistered)
+    Utility.WaitMenuMode(0.3)
+    RegisterForRemoteEvent(Game.GetPlayer(), "OnItemAdded")
+    IsUnregistered=False
+    debug.trace("Menu is closed. Register"+!IsUnregistered)
+  endIf
+EndEvent
+
+Event ObjectReference.OnItemAdded(ObjectReference akSender, Form akBaseItem, Int aiItemCount, ObjectReference akItemReference, ObjectReference akSourceContainer)
+	Debug.Trace("OnItemAdded Event Starts",0)
+  if(bShouldCheckItemCount&&LastItem!=None)
+    if(aiItemCount==1&&Game.GetPlayer().getItemCount(LastItem)==LastCount+1)
+      Game.GetPlayer().RemoveItem(LastItem,aiItemCount,True,None)
+      Debug.trace("Duplicate removed")
+    EndIf
+    bShouldCheckItemCount=False
+    LastItem=None
+  EndIf
+  if(akSourceContainer!=None&&(akBaseItem.GetGoldValue()==0||akBaseItem.GetGoldValue()==1)&&Game.GetPlayer().getItemCount(akBaseItem)==aiItemCount&&akSender==Game.GetPlayer())
+    Debug.trace("Item's value is 0 or 1")
+    LastItem=akBaseItem
+    LastCount=aiItemCount
+    bShouldCheckItemCount=True
+    ObjectReference NoteMaybe=Game.GetPlayer().PlaceAtMe(akBaseItem)
+    Debug.trace("prepare to read")
+    NoteMaybe.Activate(Game.GetPlayer(),False)
+    Debug.trace("try to read")
+  Endif
+  Debug.trace("OnItemAdded Event ends")
+EndEvent
+
+
   
 
     
